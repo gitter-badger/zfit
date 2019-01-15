@@ -5,11 +5,11 @@ from typing import List
 
 class BaseRepr:
 
-    def __init__(self, param_name, arg_name=None, obj=None, repr=None):
-        self._param_name = param_name
-        self._arg_name = arg_name
-        self.obj = obj
-        self.repr = repr
+    def __init__(self, obj_getter=None, obj_serial=None):
+        self._param_name = None
+        self.obj = None
+        self.obj_getter = obj_getter
+        self.obj_serial = obj_serial
         self.daughters = OrderedDict()
 
     @abc.abstractmethod

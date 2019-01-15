@@ -30,11 +30,11 @@ class BaseSerializable(ZfitSerializable):
 
     @abc.abstractmethod
     def _get_post_init_repr(self):
-        raise NotImplementedError
+        return OrderedDict()
 
     def get_repr_init(self, **overwrite_kwargs) -> OrderedDict:
         return self._get_repr_init(**overwrite_kwargs)
 
     @abc.abstractmethod
     def _get_repr_init(self, **overwrite_kwargs):
-        raise NotImplementedError
+        return OrderedDict()
