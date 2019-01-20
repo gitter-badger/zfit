@@ -2,72 +2,195 @@ import abc
 from collections import OrderedDict
 from typing import List
 
+import pep487
 
-class BaseRepr:
 
-    def __init__(self, obj_getter=None, obj_serial=None):
-        self._param_name = None
-        self.obj = None
+class Repr:
+
+    def __init__(self, repr, obj_getter):
+        self.repr = repr
         self.obj_getter = obj_getter
-        self.obj_serial = obj_serial
-        self.daughters = OrderedDict()
+
+
+class BaseRepr(pep487.PEP487Object):
+    # class_init_repr = OrderedDict()
+    instantiator = None
+
+    def __init__(self, obj=None, serial=None, overwrite_kwargs=None):
+        self.obj = obj
+        self.serial = serial
+        self._init_wrapped = None
+
+    # def __init_subclass__(cls, **kwargs):
+    #     cls.instantiator = None
 
     @abc.abstractmethod
-    def _obj_from_repr(self):
+    def _get_init_wrapped_from_obj(self, obj):
         raise NotImplementedError
 
     @property
-    @abc.abstractmethod
-    def _key_order(self) -> List[str]:
-        return []
+    def init_wrapped(self):
+        if self._init_wrapped is None:
+            if self.obj is not None:
+                init_wrapped = self._get_init_wrapped_from_obj(obj=self.obj)
+            elif self.serial is not None:
+                init_wrapped = self._get_init_wrapped_from_serial(serial=self.serial)
+            else:
+                assert False, "This should not happen, bug. Please report on github."
+            self._init_wrapped = init_wrapped
+        return self._init_wrapped
 
-    def _sort_objects(self, obj: OrderedDict) -> OrderedDict:
-        new_obj = OrderedDict()
-        for sort_key in self._key_order:
-            v = obj.pop(sort_key)
-            new_obj[sort_key] = v
-        new_obj.update(obj)
-        return new_obj
-
-    def load(self, sort=True):
-        obj = OrderedDict(((self.arg_name, self._obj_from_repr()),))
-        daughter_obj = self._obj_from_daugthers()
-        obj.update(daughter_obj)
-
-        if sort:
-            obj = self._sort_objects(obj=obj)
-        return obj
-
-    def dump(self, sort=True):
-        repr = OrderedDict(((self.arg_name, self._repr_from_obj()),))
-
-        if sort:
-            repr = self._sort_objects(obj=repr)
-        return repr
+    def _dump_wrapped_from_init_wrapped(self, init_wrapped):
+        return init_wrapped
 
     @abc.abstractmethod
-    def _repr_from_obj(self) -> OrderedDict:
+    def _dump_serial_from_dump_wrapped(self, dump_wrapped):
         raise NotImplementedError
 
-    @property
-    def param_name(self) -> str:
-        """Name of the object received as parameter (in signature).
+    #
+    # def set_init_wrapped(self):
+    #     if self.obj is not None:
+    #         self._init_wrapped = self._get_init_wrapped_from_obj(obj=self.obj)
+    #     elif self.serial is not None:
+    #         self._init_wrapped = self._get_init_wrapped_from_serial(serial=self.serial)
+    #     else:
+    #         assert False, "Bug, this case should not happen. Please fill an issue and report."
+    #
+    # def get_init_wrapped(self):
+    #     return self._init_wrapped
+    #
+    def get_dump_serial(self):
+        serial = self.serial
+        if serial is not None:
+            return serial
+        else:
+            init_wrapped = self.init_wrapped
+            dump_wrapped = self._dump_wrapped_from_init_wrapped(init_wrapped=init_wrapped)
+            dump_serial = self._dump_serial_from_dump_wrapped(dump_wrapped=dump_wrapped)
+            self.serial = dump_serial
+            return dump_serial
 
-        Returns:
-            str:
-        """
-        return self._param_name
+    #
+    def get_init_obj(self):
+        obj = self.obj
+        if obj is not None:
+            return obj
+        else:
+            init_wrapped = self.init_wrapped
+            init_obj = self._init_obj_from_init_wrapped(init_wrapped=init_wrapped)
+            self.obj = init_obj
+            return init_obj
 
-    @property
-    def arg_name(self) -> str:
-        """Name of the object when given as argument to the `super` init.
+    def _get_init_wrapped_from_serial(self, serial):
+        dump_wrapped = self._dump_wrapped_from_dump_serial(dump_serial=serial)
+        init_wrapped = self._init_wrapped_from_dump_wrapped(dump_wrapped=dump_wrapped)
+        return init_wrapped
 
-        Returns:
-            str:
-        """
-        return self._arg_name
+    @abc.abstractmethod
+    def _dump_wrapped_from_dump_serial(self, dump_serial):
+        raise NotImplementedError
 
-    def _obj_from_daugthers(self) -> OrderedDict:
-        repr = OrderedDict()
-        for daughter in self.daughters:
-            repr.update(daughter.load())
+    def _init_wrapped_from_dump_wrapped(self, dump_wrapped):
+        return dump_wrapped
+
+    @abc.abstractmethod
+    def _init_obj_from_init_wrapped(self, init_wrapped):
+        raise NotImplementedError
+    #
+    # @property
+    # def _key_order(self) -> List[str]:
+    #     return []
+    #
+    # def _sort_objects(self, obj: OrderedDict) -> OrderedDict:
+    #     new_obj = OrderedDict()
+    #     for sort_key in self._key_order:
+    #         v = obj.pop(sort_key)
+    #         new_obj[sort_key] = v
+    #     new_obj.update(obj)
+    #     return new_obj
+    #
+    # def load(self, sort=True):
+    #     obj = OrderedDict(((self.arg_name, self._obj_from_repr()),))
+    #     daughter_obj = self._obj_from_daugthers()
+    #     obj.update(daughter_obj)
+    #
+    #     if sort:
+    #         obj = self._sort_objects(obj=obj)
+    #     return obj
+    #
+    # def dump(self, sort=True):
+    #     repr = OrderedDict(((self.arg_name, self._repr_from_obj()),))
+    #
+    #     if sort:
+    #         repr = self._sort_objects(obj=repr)
+    #     return repr
+    #
+    # @property
+    # def param_name(self) -> str:
+    #     """Name of the object received as parameter (in signature).
+    #
+    #     Returns:
+    #         str:
+    #     """
+    #     return self._param_name
+    #
+    # @property
+    # def arg_name(self) -> str:
+    #     """Name of the object when given as argument to the `super` init.
+    #
+    #     Returns:
+    #         str:
+    #     """
+    #     return self._arg_name
+    #
+    # def _obj_from_daugthers(self) -> OrderedDict:
+    #     repr = OrderedDict()
+    #     for daughter in self.daughters:
+    #         repr.update(daughter.load())
+
+
+class CompositeRepr(BaseRepr):
+
+    def __init__(self, obj=None, serial=None, overwrite_kwargs=None):
+        super().__init__(obj, serial, overwrite_kwargs)
+
+        self.init_repr = self.instantiator.get_repr_init()
+        self._input_overwrite_init(overwrite_kwargs=overwrite_kwargs)
+
+    def _input_overwrite_init(self, overwrite_kwargs):
+        if overwrite_kwargs is None:
+            overwrite_kwargs = {}
+
+        for key, value in overwrite_kwargs.items():
+            repr = self.init_repr[key]
+            repr.obj_getter = lambda self: value
+            self.init_repr[key] = repr
+
+    def _get_init_wrapped_from_obj(self, obj):
+        init_wrapped = OrderedDict()
+        for key, repr in self.init_repr.items():
+            init_wrapped[key] = repr.repr(obj=repr.obj_getter(obj))  # TODO: add more logic for copy etc.
+        return init_wrapped
+
+    def _dump_wrapped_from_dump_serial(self, dump_serial):
+        dump_wrapped = OrderedDict()
+        for key, serial in dump_serial.items():
+            dump_wrapped[key] = self.init_repr[key].repr(serial=serial)  # TODO: add more logic for copy etc.
+        return dump_wrapped
+
+    def _dump_serial_from_dump_wrapped(self, dump_wrapped):
+        dump_serial = OrderedDict()
+        for key, value in dump_wrapped.items():
+            if isinstance(value, BaseRepr):
+                value = value.get_dump_serial()
+            dump_serial[key] = value
+        return dump_serial
+
+    def _init_obj_from_init_wrapped(self, init_wrapped):
+        init_obj = OrderedDict()
+        for key, value in init_wrapped.items():
+            if isinstance(value, BaseRepr):
+                value = value.get_init_obj()
+            init_obj[key] = value
+        new_instance = self.instantiator(**init_obj)
+        return new_instance
