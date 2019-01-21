@@ -1,15 +1,16 @@
 import abc
 from collections import OrderedDict
-from typing import List
+from typing import List, Tuple
 
 import pep487
 
 
 class Repr:
 
-    def __init__(self, repr, obj_getter):
+    def __init__(self, repr, obj_getter, setter='init'):
         self.repr = repr
         self.obj_getter = obj_getter
+        self.setter = setter
 
 
 class BaseRepr(pep487.PEP487Object):
@@ -158,8 +159,23 @@ class CompositeRepr(BaseRepr):
     def __init__(self, obj=None, serial=None, overwrite_kwargs=None):
         super().__init__(obj, serial, overwrite_kwargs)
 
-        self.init_repr = self.instantiator.get_repr_init()
+        init_repr, post_init = self._input_repr_init_split(self.instantiator.get_repr_init())
+        self.init_repr = init_repr
+        self.post_init = post_init
         self._input_overwrite_init(overwrite_kwargs=overwrite_kwargs)
+
+    def _input_repr_init_split(self, repr_init) -> Tuple[OrderedDict, OrderedDict]:
+        new_repr_init = OrderedDict()
+        post_init = OrderedDict()
+        for key, repr in repr_init.items():
+            if repr.setter == 'init':
+                new_repr_init[key] = repr
+            elif callable(repr.setter):
+                post_init[key] = repr
+            else:
+                raise ValueError()
+
+        return new_repr_init, post_init
 
     def _input_overwrite_init(self, overwrite_kwargs):
         if overwrite_kwargs is None:
@@ -197,4 +213,8 @@ class CompositeRepr(BaseRepr):
                 value = value.get_init_obj()
             init_obj[key] = value
         new_instance = self.instantiator(**init_obj)
+        new_instance = self._apply_post_init(new_instance)
         return new_instance
+
+    # def _apply_post_init(self, new_instance):
+    #     for key, repr in self.post_init:
