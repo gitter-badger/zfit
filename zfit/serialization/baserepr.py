@@ -37,6 +37,7 @@ class BaseRepr(pep487.PEP487Object):
                 init_wrapped = self._get_init_wrapped_from_serial(serial=self.serial)
             else:
                 assert False, "This should not happen, bug. Please report on github."
+            init_wrapped = self._sort_by_keys(init_wrapped)
             self._init_wrapped = init_wrapped
         return self._init_wrapped
 
@@ -96,18 +97,21 @@ class BaseRepr(pep487.PEP487Object):
     @abc.abstractmethod
     def _init_obj_from_init_wrapped(self, init_wrapped):
         raise NotImplementedError
-    #
-    # @property
-    # def _key_order(self) -> List[str]:
-    #     return []
-    #
-    # def _sort_objects(self, obj: OrderedDict) -> OrderedDict:
-    #     new_obj = OrderedDict()
-    #     for sort_key in self._key_order:
-    #         v = obj.pop(sort_key)
-    #         new_obj[sort_key] = v
-    #     new_obj.update(obj)
-    #     return new_obj
+
+    @property
+    def _key_order(self) -> List[str]:
+        return []
+
+    def _sort_by_keys(self, obj: OrderedDict) -> OrderedDict:
+        if not isinstance(obj, dict):
+            return obj
+        new_obj = OrderedDict()
+        obj = obj.copy()
+        for sort_key in self._key_order:
+            v = obj.pop(sort_key)
+            new_obj[sort_key] = v
+        new_obj.update(obj)
+        return new_obj
     #
     # def load(self, sort=True):
     #     obj = OrderedDict(((self.arg_name, self._obj_from_repr()),))
@@ -115,14 +119,14 @@ class BaseRepr(pep487.PEP487Object):
     #     obj.update(daughter_obj)
     #
     #     if sort:
-    #         obj = self._sort_objects(obj=obj)
+    #         obj = self._sort_by_keys(obj=obj)
     #     return obj
     #
     # def dump(self, sort=True):
     #     repr = OrderedDict(((self.arg_name, self._repr_from_obj()),))
     #
     #     if sort:
-    #         repr = self._sort_objects(obj=repr)
+    #         repr = self._sort_by_keys(obj=repr)
     #     return repr
     #
     # @property

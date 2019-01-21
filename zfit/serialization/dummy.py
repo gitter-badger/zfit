@@ -26,25 +26,53 @@ class DummyParam(BaseSerializable):
         return super_init_obj
 
 
-class DummyPDF1(BaseSerializable):
+class DummyBasePDF(BaseSerializable):
 
-    def __init__(self, mu, sigma, name):
-        super().__init__()
-        self.mu = mu
-        self.sigma = sigma
+    def __init__(self, name, analytic_integrable):
+        self.analytic_integrable = analytic_integrable
         self.name = name
 
     @classmethod
     def _get_repr_init(cls):
         init_obj = super()._get_repr_init()
         self_init_obj = OrderedDict((
-            ('mu', Repr(ZParam, obj_getter=lambda self: self.mu)),
-            ('sigma', Repr(ZParam, obj_getter=lambda self: self.sigma)),
             ('name', Repr(ZString, obj_getter=lambda self: self.name)),
+            ('analytic_integrable', Repr(ZParam, obj_getter=lambda self: self.analytic_integrable)),
             )
             )
         init_obj.update(self_init_obj)
         return init_obj
+
+
+class DummyPDF1(DummyBasePDF):
+
+    def __init__(self, mu, sigma, name):
+        name += "_PDF1_auto"
+        analytic_integrable = True  # created here, cannot be from init
+        super().__init__(name=name, analytic_integrable=analytic_integrable)
+        self.mu = mu
+        self.sigma = sigma
+
+    @classmethod
+    def _get_repr_init(cls):
+        init_obj = super()._get_repr_init()
+        del init_obj['analytic_integrable']
+        self_init_obj = OrderedDict((
+            ('mu', Repr(ZParam, obj_getter=lambda self: self.mu)),
+            ('sigma', Repr(ZParam, obj_getter=lambda self: self.sigma)),
+            ('name', Repr(ZString, obj_getter=lambda self: self.name[:-10])),
+            )
+            )
+        init_obj.update(self_init_obj)
+        return init_obj
+
+
+class DummySumPDF(BaseSerializable):
+    def __init__(self, pdfs, fracs, name):
+        self.pdfs = pdfs
+        if len(fracs) == len(pdfs) - 1:
+            fracs.append(0.1)  # dummy number
+        self.fracs = fracs
 
 
 class ZNumeric(BaseRepr):
@@ -69,6 +97,10 @@ class ZParam(CompositeRepr):
 
 class ZPDF(CompositeRepr):
     instantiator = DummyPDF1
+
+
+class ZSumPDF(CompositeRepr):
+    instantiator = DummySumPDF
 
 
 class ZString(BaseRepr):
@@ -101,6 +133,7 @@ def pdfs_equal(pdf1, pdf2):
     equal *= pdf1.name == pdf2.name
     equal *= params_equal(pdf1.mu, pdf2.mu)
     equal *= params_equal(pdf1.sigma, pdf2.sigma)
+    equal *= pdf1.analytic_integrable == pdf2.analytic_integrable
     return bool(equal)
 
 
