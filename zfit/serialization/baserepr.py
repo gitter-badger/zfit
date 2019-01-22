@@ -213,7 +213,7 @@ class CompositeRepr(BaseRepr):
                 value = value.get_init_obj()
             init_obj[key] = value
         new_instance = self.instantiator(**init_obj)
-        new_instance = self._apply_post_init(new_instance)
+        # new_instance = self._apply_post_init(new_instance)
         return new_instance
 
     # def _apply_post_init(self, new_instance):
